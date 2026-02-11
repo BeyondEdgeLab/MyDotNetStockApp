@@ -7,6 +7,7 @@ namespace StockApp.Services
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger<YahooFinanceStockService> _logger;
+        private const double DENOMINATOR_THRESHOLD = 0.0001;
 
         public YahooFinanceStockService(HttpClient httpClient, ILogger<YahooFinanceStockService> logger)
         {
@@ -238,7 +239,7 @@ namespace StockApp.Services
             double numerator = sumXY - n * xMean * yMean;
             double denominator = sumX2 - n * xMean * xMean;
 
-            if (Math.Abs(denominator) < 0.0001)
+            if (Math.Abs(denominator) < DENOMINATOR_THRESHOLD)
             {
                 return 0.0;
             }

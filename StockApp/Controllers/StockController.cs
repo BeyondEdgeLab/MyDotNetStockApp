@@ -36,10 +36,21 @@ namespace StockApp.Controllers
         }
 
         [HttpPost("trends")]
-        public async Task<IEnumerable<StockTrendResult>> AnalyzeTrends([FromBody] TrendAnalysisRequest request)
+        public async Task<ActionResult<IEnumerable<StockTrendResult>>> AnalyzeTrends([FromBody] TrendAnalysisRequest request)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            if (request.Symbols == null || request.Symbols.Count == 0)
+            {
+                return BadRequest("At least one stock symbol is required.");
+            }
+
             var windowDuration = TimeSpan.FromMinutes(request.WindowMinutes);
-            return await _stockService.AnalyzeTrendsAsync(request.Symbols, windowDuration);
+            var results = await _stockService.AnalyzeTrendsAsync(request.Symbols, windowDuration);
+            return Ok(results);
         }
     }
 }
