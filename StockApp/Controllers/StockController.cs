@@ -34,5 +34,12 @@ namespace StockApp.Controllers
             var windowDuration = TimeSpan.FromMinutes(minutes);
             return await _stockService.GetRecentStockPricesAsync(symbol, windowDuration);
         }
+
+        [HttpPost("trends")]
+        public async Task<IEnumerable<StockTrendResult>> AnalyzeTrends([FromBody] TrendAnalysisRequest request)
+        {
+            var windowDuration = TimeSpan.FromMinutes(request.WindowMinutes);
+            return await _stockService.AnalyzeTrendsAsync(request.Symbols, windowDuration);
+        }
     }
 }
