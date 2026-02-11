@@ -4,3 +4,45 @@ GET {{StockApp_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+# Get stock prices for AAPL for the last 30 days
+GET {{StockApp_HostAddress}}/stock/AAPL
+Accept: application/json
+
+###
+
+# Get stock prices for AAPL with custom date range
+GET {{StockApp_HostAddress}}/stock/AAPL?startDate=2024-01-01&endDate=2024-01-31
+Accept: application/json
+
+###
+
+# Get recent stock prices for AAPL (last 5 minutes)
+GET {{StockApp_HostAddress}}/stock/AAPL/recent?minutes=5
+Accept: application/json
+
+###
+
+# Analyze stock trends for multiple symbols
+POST {{StockApp_HostAddress}}/stock/trends
+Content-Type: application/json
+Accept: application/json
+
+{
+  "symbols": ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"],
+  "windowMinutes": 5
+}
+
+###
+
+# Analyze stock trends with custom time window
+POST {{StockApp_HostAddress}}/stock/trends
+Content-Type: application/json
+Accept: application/json
+
+{
+  "symbols": ["AAPL", "MSFT"],
+  "windowMinutes": 15
+}
+
+###
