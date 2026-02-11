@@ -96,7 +96,7 @@ namespace StockApp.Controllers
                     
                     // Calculate percentage growth: ((end - start) / start) * 100
                     var percentageGrowth = startPrice != 0 
-                        ? Math.Round(((endPrice - startPrice) / startPrice) * 100, 2)
+                        ? (decimal)Math.Round(((endPrice - startPrice) / startPrice) * 100, 2)
                         : 0;
 
                     return new StockResult
