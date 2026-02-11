@@ -4,3 +4,26 @@ GET {{StockApp_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+# Get stock prices for a single symbol with date range
+GET {{StockApp_HostAddress}}/stock/AAPL?startDate=2024-01-01&endDate=2024-01-31
+Accept: application/json
+
+###
+
+# Get recent stock prices for a single symbol (last 5 minutes)
+GET {{StockApp_HostAddress}}/stock/AAPL/recent?minutes=5
+Accept: application/json
+
+###
+
+# Get recent stock prices for multiple symbols (new endpoint)
+POST {{StockApp_HostAddress}}/stock/recent
+Content-Type: application/json
+
+{
+  "symbols": ["AAPL", "MSFT", "GOOGL"],
+  "windowMinutes": 5
+}
+
+###

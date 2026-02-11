@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 using StockApp.Services;
+using StockApp.Models;
 
 namespace StockApp.Controllers
 {
@@ -33,6 +34,36 @@ namespace StockApp.Controllers
         {
             var windowDuration = TimeSpan.FromMinutes(minutes);
             return await _stockService.GetRecentStockPricesAsync(symbol, windowDuration);
+        }
+
+        [HttpPost("recent")]
+        public async Task<IActionResult> GetRecentForMultipleSymbols([FromBody] MultiSymbolRequest request)
+        {
+            if (request.Symbols == null || !request.Symbols.Any())
+            {
+                return BadRequest(new { error = "Symbols list cannot be empty" });
+            }
+
+            var windowDuration = TimeSpan.FromMinutes(request.WindowMinutes);
+            var allPrices = await _stockService.GetRecentStockPricesForSymbolsAsync(request.Symbols, windowDuration);
+
+            // Group by symbol and sort prices by timestamp (most recent first)
+            var response = allPrices
+                .GroupBy(p => p.Symbol)
+                .Select(g => new StockPriceResponse
+                {
+                    Symbol = g.Key,
+                    Prices = g.Select(p => new PricePoint
+                    {
+                        Price = p.Price,
+                        Timestamp = p.Date
+                    })
+                    .OrderByDescending(p => p.Timestamp)
+                    .ToList()
+                })
+                .ToList();
+
+            return Ok(response);
         }
     }
 }
