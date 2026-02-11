@@ -7,6 +7,7 @@ namespace StockApp.Services
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger<YahooFinanceStockService> _logger;
+        private const double DENOMINATOR_THRESHOLD = 0.0001;
 
         public YahooFinanceStockService(HttpClient httpClient, ILogger<YahooFinanceStockService> logger)
         {
