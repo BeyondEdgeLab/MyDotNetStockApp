@@ -76,7 +76,7 @@ namespace StockApp.Services
                             if (i < prices.Count && prices[i].ValueKind != JsonValueKind.Null)
                             {
                                 var priceVal = prices[i].GetDecimal();
-                                var dateVal = DateTimeOffset.FromUnixTimeSeconds(timestamps[i].GetInt64()).LocalDateTime;
+                                var dateVal = DateTimeOffset.FromUnixTimeSeconds(timestamps[i].GetInt64());
 
                                 result.Add(new StockPrice
                                 {
@@ -161,7 +161,7 @@ namespace StockApp.Services
                             if (i < prices.Count && prices[i].ValueKind != JsonValueKind.Null)
                             {
                                 var priceVal = prices[i].GetDecimal();
-                                var dateVal = DateTimeOffset.FromUnixTimeSeconds(timestamps[i].GetInt64()).UtcDateTime;
+                                var dateVal = DateTimeOffset.FromUnixTimeSeconds(timestamps[i].GetInt64());
 
                                 result.Add(new StockPrice
                                 {
@@ -184,67 +184,14 @@ namespace StockApp.Services
             }
         }
 
-        public async Task<IEnumerable<StockTrendResult>> AnalyzeTrendsAsync(IEnumerable<string> symbols, TimeSpan windowDuration)
+        public async Task<IEnumerable<StockPrice>> GetRecentStockPricesForSymbolsAsync(IEnumerable<string> symbols, TimeSpan windowDuration)
         {
-            _logger.LogInformation($"Analyzing trends for {symbols.Count()} symbols over {windowDuration.TotalMinutes} minutes");
+            _logger.LogInformation($"Getting recent stock prices for {symbols.Count()} symbols for the last {windowDuration.TotalMinutes} minutes");
 
-            var tasks = symbols.Select(async symbol =>
-            {
-                var prices = await GetRecentStockPricesAsync(symbol, windowDuration);
-                var priceList = prices.ToList();
-                
-                var slope = CalculateLinearRegressionSlope(priceList);
-
-                return new StockTrendResult
-                {
-                    Symbol = symbol,
-                    Prices = priceList,
-                    Slope = slope
-                };
-            });
-
+            var tasks = symbols.Select(symbol => GetRecentStockPricesAsync(symbol, windowDuration));
             var results = await Task.WhenAll(tasks);
-
-            // Sort by slope in descending order (most positive first)
-            return results.OrderByDescending(r => r.Slope);
-        }
-
-        private double CalculateLinearRegressionSlope(List<StockPrice> prices)
-        {
-            if (prices.Count < 2)
-            {
-                return 0.0;
-            }
-
-            // Use index as X (time) and price as Y
-            // Linear regression: slope = Σ((x - x̄)(y - ȳ)) / Σ((x - x̄)²)
             
-            int n = prices.Count;
-            double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-
-            for (int i = 0; i < n; i++)
-            {
-                double x = i; // Use index as time representation
-                double y = (double)prices[i].Price;
-
-                sumX += x;
-                sumY += y;
-                sumXY += x * y;
-                sumX2 += x * x;
-            }
-
-            double xMean = sumX / n;
-            double yMean = sumY / n;
-
-            double numerator = sumXY - n * xMean * yMean;
-            double denominator = sumX2 - n * xMean * xMean;
-
-            if (Math.Abs(denominator) < DENOMINATOR_THRESHOLD)
-            {
-                return 0.0;
-            }
-
-            return numerator / denominator;
+            return results.SelectMany(r => r);
         }
     }
 }
