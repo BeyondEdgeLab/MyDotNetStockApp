@@ -75,7 +75,7 @@ namespace StockApp.Controllers
             }
 
             var windowDuration = TimeSpan.FromMinutes(request.WindowMinutes);
-            var asOfUtc = DateTime.UtcNow;
+            var asOfUtc = DateTimeOffset.UtcNow;
             var allPrices = await _stockService.GetRecentStockPricesForSymbolsAsync(request.Symbols, windowDuration);
 
             // Group by symbol, calculate growth, and sort by percentage growth (highest first)
@@ -115,14 +115,15 @@ namespace StockApp.Controllers
                     };
                 })
                 .Where(r => r != null)
-                .OrderByDescending(r => r!.PercentageGrowth)
+                .Select(r => r!)
+                .OrderByDescending(r => r.PercentageGrowth)
                 .ToList();
 
             var response = new StockGrowthResponse
             {
                 WindowMinutes = request.WindowMinutes,
                 AsOfUtc = asOfUtc,
-                Results = results!
+                Results = results
             };
 
             return Ok(response);

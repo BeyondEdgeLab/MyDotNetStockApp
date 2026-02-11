@@ -37,7 +37,7 @@ Retrieves intraday stock prices for a specific symbol within a time window.
 curl "http://localhost:5000/stock/AAPL/recent?minutes=5"
 ```
 
-### 3. Get Recent Prices for Multiple Symbols (NEW)
+### 3. Get Recent Prices for Multiple Symbols
 ```
 POST /stock/recent
 ```
@@ -93,6 +93,90 @@ curl -X POST http://localhost:5000/stock/recent \
   -H "Content-Type: application/json" \
   -d '{
     "symbols": ["AAPL", "MSFT", "GOOGL"],
+    "windowMinutes": 5
+  }'
+```
+
+### 4. Get Stock Growth Analysis (NEW)
+```
+POST /stock/growth
+```
+
+Retrieves stock price data for multiple symbols within a configurable time window and calculates percentage growth. Results are sorted by highest percentage growth first, with prices ordered from most recent to oldest.
+
+**Request Body:**
+```json
+{
+  "symbols": ["AAPL", "MSFT", "TSLA"],
+  "windowMinutes": 5
+}
+```
+
+**Response:**
+```json
+{
+  "windowMinutes": 5,
+  "asOfUtc": "2026-02-11T04:22:00Z",
+  "results": [
+    {
+      "symbol": "TSLA",
+      "startPrice": 192.40,
+      "endPrice": 198.10,
+      "percentageGrowth": 2.96,
+      "prices": [
+        {
+          "timestamp": "2026-02-11T04:22:00Z",
+          "price": 198.10
+        },
+        {
+          "timestamp": "2026-02-11T04:21:00Z",
+          "price": 196.80
+        },
+        {
+          "timestamp": "2026-02-11T04:20:00Z",
+          "price": 192.40
+        }
+      ]
+    },
+    {
+      "symbol": "AAPL",
+      "startPrice": 178.20,
+      "endPrice": 179.10,
+      "percentageGrowth": 0.50,
+      "prices": [
+        {
+          "timestamp": "2026-02-11T04:22:00Z",
+          "price": 179.10
+        },
+        {
+          "timestamp": "2026-02-11T04:21:00Z",
+          "price": 178.60
+        },
+        {
+          "timestamp": "2026-02-11T04:20:00Z",
+          "price": 178.20
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Features:**
+- Accepts a list of stock symbols
+- Configurable time window (in minutes)
+- Calculates percentage growth: `((endPrice - startPrice) / startPrice) * 100`
+- Results sorted by highest percentage growth first
+- Prices within each result sorted by most recent first
+- Returns `asOfUtc` timestamp indicating when the data was retrieved
+- Handles edge cases (empty data, insufficient price points, division by zero)
+
+**Example:**
+```bash
+curl -X POST http://localhost:5000/stock/growth \
+  -H "Content-Type: application/json" \
+  -d '{
+    "symbols": ["AAPL", "MSFT", "TSLA"],
     "windowMinutes": 5
   }'
 ```
