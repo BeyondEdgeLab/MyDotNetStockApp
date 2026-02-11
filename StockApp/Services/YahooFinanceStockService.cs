@@ -7,6 +7,7 @@ namespace StockApp.Services
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger<YahooFinanceStockService> _logger;
+        private const double DENOMINATOR_THRESHOLD = 0.0001;
 
         public YahooFinanceStockService(HttpClient httpClient, ILogger<YahooFinanceStockService> logger)
         {
@@ -75,7 +76,7 @@ namespace StockApp.Services
                             if (i < prices.Count && prices[i].ValueKind != JsonValueKind.Null)
                             {
                                 var priceVal = prices[i].GetDecimal();
-                                var dateVal = DateTimeOffset.FromUnixTimeSeconds(timestamps[i].GetInt64()).LocalDateTime;
+                                var dateVal = DateTimeOffset.FromUnixTimeSeconds(timestamps[i].GetInt64());
 
                                 result.Add(new StockPrice
                                 {
@@ -160,7 +161,7 @@ namespace StockApp.Services
                             if (i < prices.Count && prices[i].ValueKind != JsonValueKind.Null)
                             {
                                 var priceVal = prices[i].GetDecimal();
-                                var dateVal = DateTimeOffset.FromUnixTimeSeconds(timestamps[i].GetInt64()).UtcDateTime;
+                                var dateVal = DateTimeOffset.FromUnixTimeSeconds(timestamps[i].GetInt64());
 
                                 result.Add(new StockPrice
                                 {
@@ -181,6 +182,16 @@ namespace StockApp.Services
                 _logger.LogError(ex, $"Error fetching recent data from Yahoo Finance for {symbol}");
                 return Enumerable.Empty<StockPrice>();
             }
+        }
+
+        public async Task<IEnumerable<StockPrice>> GetRecentStockPricesForSymbolsAsync(IEnumerable<string> symbols, TimeSpan windowDuration)
+        {
+            _logger.LogInformation($"Getting recent stock prices for {symbols.Count()} symbols for the last {windowDuration.TotalMinutes} minutes");
+
+            var tasks = symbols.Select(symbol => GetRecentStockPricesAsync(symbol, windowDuration));
+            var results = await Task.WhenAll(tasks);
+            
+            return results.SelectMany(r => r);
         }
     }
 }
