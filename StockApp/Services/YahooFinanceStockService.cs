@@ -98,5 +98,89 @@ namespace StockApp.Services
                 return Enumerable.Empty<StockPrice>();
             }
         }
+
+        public async Task<IEnumerable<StockPrice>> GetRecentStockPricesAsync(string symbol, TimeSpan windowDuration)
+        {
+            _logger.LogInformation($"Getting recent stock prices for {symbol} for the last {windowDuration.TotalMinutes} minutes");
+
+            try
+            {
+                // Calculate time range based on current time
+                var endTime = DateTime.UtcNow;
+                var startTime = endTime.Subtract(windowDuration);
+
+                // Calculate Unix timestamps
+                long startEpoch = new DateTimeOffset(startTime).ToUnixTimeSeconds();
+                long endEpoch = new DateTimeOffset(endTime).ToUnixTimeSeconds();
+
+                // Yahoo Finance Chart API URL with 1-minute interval for intraday data
+                var url = $"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?period1={startEpoch}&period2={endEpoch}&interval=1m&events=history";
+
+                var request = new HttpRequestMessage(HttpMethod.Get, url);
+                request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+                var response = await _httpClient.SendAsync(request);
+                response.EnsureSuccessStatusCode();
+
+                var jsonString = await response.Content.ReadAsStringAsync();
+                var result = new List<StockPrice>();
+
+                using (JsonDocument doc = JsonDocument.Parse(jsonString))
+                {
+                    var chart = doc.RootElement.GetProperty("chart");
+                    var resultElement = chart.GetProperty("result");
+
+                    if (resultElement.ValueKind != JsonValueKind.Null && resultElement.GetArrayLength() > 0)
+                    {
+                        var data = resultElement[0];
+
+                        // Get Timestamps
+                        if (!data.TryGetProperty("timestamp", out var timestampElement))
+                        {
+                            _logger.LogWarning($"No timestamp data found for {symbol}");
+                            return result;
+                        }
+
+                        // Get Prices (Quotes)
+                        var indicators = data.GetProperty("indicators");
+                        var quote = indicators.GetProperty("quote")[0];
+                        
+                        if (!quote.TryGetProperty("close", out var closeElement))
+                        {
+                            _logger.LogWarning($"No close price data found for {symbol}");
+                            return result;
+                        }
+
+                        var timestamps = timestampElement.EnumerateArray().ToList();
+                        var prices = closeElement.EnumerateArray().ToList();
+
+                        for (int i = 0; i < timestamps.Count; i++)
+                        {
+                            // Some prices might be null in the array
+                            if (i < prices.Count && prices[i].ValueKind != JsonValueKind.Null)
+                            {
+                                var priceVal = prices[i].GetDecimal();
+                                var dateVal = DateTimeOffset.FromUnixTimeSeconds(timestamps[i].GetInt64()).UtcDateTime;
+
+                                result.Add(new StockPrice
+                                {
+                                    Symbol = symbol,
+                                    Date = dateVal,
+                                    Price = Math.Round(priceVal, 2)
+                                });
+                            }
+                        }
+                    }
+                }
+
+                _logger.LogInformation($"Retrieved {result.Count} price points for {symbol}");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error fetching recent data from Yahoo Finance for {symbol}");
+                return Enumerable.Empty<StockPrice>();
+            }
+        }
     }
 }
