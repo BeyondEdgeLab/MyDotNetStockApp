@@ -65,5 +65,67 @@ namespace StockApp.Controllers
 
             return Ok(response);
         }
+
+        [HttpPost("growth")]
+        public async Task<IActionResult> GetStockGrowth([FromBody] StockGrowthRequest request)
+        {
+            if (request.Symbols == null || !request.Symbols.Any())
+            {
+                return BadRequest(new { error = "Symbols list cannot be empty" });
+            }
+
+            var windowDuration = TimeSpan.FromMinutes(request.WindowMinutes);
+            var asOfUtc = DateTime.UtcNow;
+            var allPrices = await _stockService.GetRecentStockPricesForSymbolsAsync(request.Symbols, windowDuration);
+
+            // Group by symbol, calculate growth, and sort by percentage growth (highest first)
+            var results = allPrices
+                .GroupBy(p => p.Symbol)
+                .Select(g =>
+                {
+                    var orderedPrices = g.OrderBy(p => p.Date).ToList();
+                    
+                    // If we don't have at least 2 prices, we can't calculate growth
+                    if (orderedPrices.Count < 2)
+                    {
+                        return null;
+                    }
+
+                    var startPrice = orderedPrices.First().Price;
+                    var endPrice = orderedPrices.Last().Price;
+                    
+                    // Calculate percentage growth: ((end - start) / start) * 100
+                    var percentageGrowth = startPrice != 0 
+                        ? Math.Round(((endPrice - startPrice) / startPrice) * 100, 2)
+                        : 0;
+
+                    return new StockResult
+                    {
+                        Symbol = g.Key,
+                        StartPrice = startPrice,
+                        EndPrice = endPrice,
+                        PercentageGrowth = percentageGrowth,
+                        Prices = orderedPrices.Select(p => new PriceData
+                        {
+                            Timestamp = p.Date,
+                            Price = p.Price
+                        })
+                        .OrderByDescending(p => p.Timestamp)
+                        .ToList()
+                    };
+                })
+                .Where(r => r != null)
+                .OrderByDescending(r => r!.PercentageGrowth)
+                .ToList();
+
+            var response = new StockGrowthResponse
+            {
+                WindowMinutes = request.WindowMinutes,
+                AsOfUtc = asOfUtc,
+                Results = results!
+            };
+
+            return Ok(response);
+        }
     }
 }
