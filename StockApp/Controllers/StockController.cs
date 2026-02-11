@@ -27,5 +27,12 @@ namespace StockApp.Controllers
 
             return await _stockService.GetStockPricesAsync(symbol, start, end);
         }
+
+        [HttpGet("{symbol}/recent")]
+        public async Task<IEnumerable<StockPrice>> GetRecent(string symbol, [FromQuery] int minutes = 5)
+        {
+            var windowDuration = TimeSpan.FromMinutes(minutes);
+            return await _stockService.GetRecentStockPricesAsync(symbol, windowDuration);
+        }
     }
 }
