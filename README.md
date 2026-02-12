@@ -97,7 +97,90 @@ curl -X POST http://localhost:5000/stock/recent \
   }'
 ```
 
-### 4. Get Stock Growth Analysis (NEW)
+### 4. Get Stock Momentum Analysis (NEW)
+```
+POST /stocks/momentum
+```
+
+Calculates the momentum of a list of stocks over multiple time windows to assess the strength and consistency of price movement. Returns momentum per window and an overall score, sorted by strongest momentum first.
+
+**Request Body:**
+```json
+{
+  "symbols": ["AAPL", "TSLA", "MSFT"],
+  "windowsMinutes": [5, 30, 60, 1440],
+  "weights": [0.4, 0.3, 0.2, 0.1]
+}
+```
+
+**Fields:**
+- `symbols`: List of stock tickers
+- `windowsMinutes`: List of time windows (in minutes) to calculate momentum
+- `weights`: Optional weights for each window to compute overall momentum score
+
+**Calculation Logic:**
+
+For each symbol and each window:
+```
+Momentum = ((CurrentPrice - PriceAtWindowStart) / PriceAtWindowStart) * 100
+```
+
+Compute overall weighted score (if weights provided):
+```
+Score = sum(Momentum_window[i] * weights[i])
+```
+
+Results are sorted by highest overall momentum score.
+
+**Response:**
+```json
+{
+  "asOfUtc": "2026-02-11T04:45:00Z",
+  "results": [
+    {
+      "symbol": "TSLA",
+      "momentum": {
+        "5m": 2.5,
+        "30m": 4.1,
+        "60m": 5.0,
+        "1440m": 8.3
+      },
+      "score": 4.95
+    },
+    {
+      "symbol": "AAPL",
+      "momentum": {
+        "5m": 1.2,
+        "30m": 2.0,
+        "60m": 3.1,
+        "1440m": 6.0
+      },
+      "score": 2.97
+    }
+  ]
+}
+```
+
+**Features:**
+- Accepts a list of stock symbols
+- Configurable multiple time windows (in minutes)
+- Optional weights for calculating overall momentum score
+- Each momentum value is a percentage
+- Results sorted by highest score first
+- Newest data (current price) is always used as the endpoint
+
+**Example:**
+```bash
+curl -X POST http://localhost:5000/stocks/momentum \
+  -H "Content-Type: application/json" \
+  -d '{
+    "symbols": ["AAPL", "TSLA", "MSFT"],
+    "windowsMinutes": [5, 30, 60, 1440],
+    "weights": [0.4, 0.3, 0.2, 0.1]
+  }'
+```
+
+### 5. Get Stock Growth Analysis
 ```
 POST /stock/growth
 ```

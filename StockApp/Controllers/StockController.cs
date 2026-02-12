@@ -128,5 +128,94 @@ namespace StockApp.Controllers
 
             return Ok(response);
         }
+
+        [HttpPost("/stocks/momentum")]
+        public async Task<IActionResult> GetStockMomentum([FromBody] StockMomentumRequest request)
+        {
+            if (request.Symbols == null || !request.Symbols.Any())
+            {
+                return BadRequest(new { error = "Symbols list cannot be empty" });
+            }
+
+            if (request.WindowsMinutes == null || !request.WindowsMinutes.Any())
+            {
+                return BadRequest(new { error = "WindowsMinutes list cannot be empty" });
+            }
+
+            // Validate weights if provided
+            if (request.Weights != null && request.Weights.Count != request.WindowsMinutes.Count)
+            {
+                return BadRequest(new { error = "Weights count must match WindowsMinutes count" });
+            }
+
+            var asOfUtc = DateTimeOffset.UtcNow;
+            var results = new List<MomentumResult>();
+
+            // Process each symbol
+            foreach (var symbol in request.Symbols)
+            {
+                var momentumDict = new Dictionary<string, decimal>();
+                var weightedScoreSum = 0m;
+
+                // Process each time window
+                for (int i = 0; i < request.WindowsMinutes.Count; i++)
+                {
+                    var windowMinutes = request.WindowsMinutes[i];
+                    var windowDuration = TimeSpan.FromMinutes(windowMinutes);
+                    
+                    // Get stock prices for this window
+                    var prices = await _stockService.GetRecentStockPricesAsync(symbol, windowDuration);
+                    var orderedPrices = prices.OrderBy(p => p.Date).ToList();
+
+                    decimal momentum = 0m;
+
+                    // Calculate momentum if we have at least 2 prices
+                    if (orderedPrices.Count >= 2)
+                    {
+                        var startPrice = orderedPrices.First().Price;
+                        var currentPrice = orderedPrices.Last().Price;
+
+                        // Momentum = ((CurrentPrice - PriceAtWindowStart) / PriceAtWindowStart) * 100
+                        if (startPrice != 0)
+                        {
+                            momentum = (decimal)Math.Round(((currentPrice - startPrice) / startPrice) * 100, 2);
+                        }
+                    }
+
+                    // Store momentum with key format like "5m", "30m", etc.
+                    var key = $"{windowMinutes}m";
+                    momentumDict[key] = momentum;
+
+                    // Add to weighted score if weights are provided
+                    if (request.Weights != null)
+                    {
+                        weightedScoreSum += momentum * request.Weights[i];
+                    }
+                }
+
+                // Calculate final score
+                var score = request.Weights != null 
+                    ? (decimal)Math.Round(weightedScoreSum, 2)
+                    : 0m;
+
+                results.Add(new MomentumResult
+                {
+                    Symbol = symbol,
+                    Momentum = momentumDict,
+                    Score = score
+                });
+            }
+
+            // Sort by highest score first
+            results = results.OrderByDescending(r => r.Score).ToList();
+
+            var response = new StockMomentumResponse
+            {
+                AsOfUtc = asOfUtc,
+                Results = results
+            };
+
+            return Ok(response);
+        }
     }
 }
