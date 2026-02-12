@@ -129,7 +129,7 @@ namespace StockApp.Controllers
             return Ok(response);
         }
 
-        [HttpPost("momentum")]
+        [HttpPost("/stocks/momentum")]
         public async Task<IActionResult> GetStockMomentum([FromBody] StockMomentumRequest request)
         {
             if (request.Symbols == null || !request.Symbols.Any())
@@ -187,7 +187,7 @@ namespace StockApp.Controllers
                     momentumDict[key] = momentum;
 
                     // Add to weighted score if weights are provided
-                    if (request.Weights != null && i < request.Weights.Count)
+                    if (request.Weights != null)
                     {
                         weightedScoreSum += momentum * request.Weights[i];
                     }

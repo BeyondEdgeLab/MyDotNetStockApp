@@ -99,7 +99,7 @@ curl -X POST http://localhost:5000/stock/recent \
 
 ### 4. Get Stock Momentum Analysis (NEW)
 ```
-POST /stock/momentum
+POST /stocks/momentum
 ```
 
 Calculates the momentum of a list of stocks over multiple time windows to assess the strength and consistency of price movement. Returns momentum per window and an overall score, sorted by strongest momentum first.
@@ -171,7 +171,7 @@ Results are sorted by highest overall momentum score.
 
 **Example:**
 ```bash
-curl -X POST http://localhost:5000/stock/momentum \
+curl -X POST http://localhost:5000/stocks/momentum \
   -H "Content-Type: application/json" \
   -d '{
     "symbols": ["AAPL", "TSLA", "MSFT"],
