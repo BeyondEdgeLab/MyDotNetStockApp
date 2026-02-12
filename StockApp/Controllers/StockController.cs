@@ -217,5 +217,32 @@ namespace StockApp.Controllers
 
             return Ok(response);
         }
+
+        [HttpPost("/stocks/volatility/spikes")]
+        public async Task<IActionResult> GetVolatilitySpikes([FromBody] VolatilitySpikeRequest request)
+        {
+            if (request.Symbols == null || !request.Symbols.Any())
+            {
+                return BadRequest(new { error = "Symbols list cannot be empty" });
+            }
+
+            if (request.WindowMinutes <= 0)
+            {
+                return BadRequest(new { error = "WindowMinutes must be greater than 0" });
+            }
+
+            if (request.BaselineMinutes <= request.WindowMinutes)
+            {
+                return BadRequest(new { error = "BaselineMinutes must be greater than WindowMinutes" });
+            }
+
+            if (request.SpikeThreshold <= 0)
+            {
+                return BadRequest(new { error = "SpikeThreshold must be greater than 0" });
+            }
+
+            var response = await _stockService.GetVolatilitySpikesAsync(request);
+            return Ok(response);
+        }
     }
 }
