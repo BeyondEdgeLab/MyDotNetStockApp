@@ -2,11 +2,13 @@ using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 using StockApp.Services;
 using StockApp.Models;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace StockApp.Controllers
 {
     [ApiController]
     [Route("[controller]")]
+    [EnableRateLimiting("PerIpPolicy")]
     public class StockController : ControllerBase
     {
         private readonly ILogger<StockController> _logger;
