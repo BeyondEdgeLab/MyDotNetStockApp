@@ -264,6 +264,97 @@ curl -X POST http://localhost:5000/stock/growth \
   }'
 ```
 
+### 6. Get Volatility Spikes
+```
+POST /stocks/volatility/spikes
+```
+
+Detect stocks whose short-term volatility has spiked significantly compared to their normal baseline. This helps identify unusual price movements or unstable stocks.
+
+**Request Body:**
+```json
+{
+  "symbols": ["AAPL", "TSLA", "MSFT"],
+  "windowMinutes": 5,
+  "baselineMinutes": 60,
+  "spikeThreshold": 2.0
+}
+```
+
+**Fields:**
+- `symbols`: List of stock tickers
+- `windowMinutes`: Short-term volatility window (from NOW backward)
+- `baselineMinutes`: Reference window for normal volatility
+- `spikeThreshold`: Minimum multiple of baseline volatility to be considered a spike
+
+**Calculation Logic:**
+
+1. Fetch price data for each symbol from now - baselineMinutes to now
+2. Compute short-term volatility for the last windowMinutes using standard deviation of log returns:
+   ```
+   return_t = ln(price_t / price_t-1)
+   shortTermVolatility = std(return_t)
+   ```
+3. Compute baseline volatility using the rest of the data:
+   ```
+   baselineVolatility = std(return_t from (now - baselineMinutes) to (now - windowMinutes))
+   ```
+4. Calculate spike factor:
+   ```
+   spikeFactor = shortTermVolatility / baselineVolatility
+   ```
+5. Filter: only include stocks where spikeFactor >= spikeThreshold
+6. Sort: by highest spikeFactor first
+
+**Response:**
+```json
+{
+  "windowMinutes": 5,
+  "baselineMinutes": 60,
+  "asOfUtc": "2026-02-11T04:50:00Z",
+  "results": [
+    {
+      "symbol": "TSLA",
+      "shortTermVolatility": 0.0042,
+      "baselineVolatility": 0.0015,
+      "spikeFactor": 2.8,
+      "priceChangePercent": 3.1
+    },
+    {
+      "symbol": "AAPL",
+      "shortTermVolatility": 0.0021,
+      "baselineVolatility": 0.0010,
+      "spikeFactor": 2.1,
+      "priceChangePercent": 1.4
+    }
+  ]
+}
+```
+
+**Notes:**
+- `priceChangePercent = ((current - start) / start) * 100`
+- Excludes stocks with insufficient data or baseline volatility = 0
+- Endpoint works from current time backward
+
+**Features:**
+- Detects unusual volatility spikes in stock prices
+- Uses log returns for better statistical properties
+- Configurable time windows and spike threshold
+- Returns only stocks that exceed the spike threshold
+- Results sorted by highest spike factor first
+
+**Example:**
+```bash
+curl -X POST http://localhost:5000/stocks/volatility/spikes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "symbols": ["AAPL", "TSLA", "MSFT"],
+    "windowMinutes": 5,
+    "baselineMinutes": 60,
+    "spikeThreshold": 2.0
+  }'
+```
+
 ## Building and Running
 
 ### Prerequisites

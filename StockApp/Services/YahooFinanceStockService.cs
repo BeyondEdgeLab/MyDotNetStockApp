@@ -1,4 +1,5 @@
 using StockApp;
+using StockApp.Models;
 using System.Text.Json;
 
 namespace StockApp.Services
@@ -8,6 +9,9 @@ namespace StockApp.Services
         private readonly HttpClient _httpClient;
         private readonly ILogger<YahooFinanceStockService> _logger;
         private const double DENOMINATOR_THRESHOLD = 0.0001;
+        private const int VOLATILITY_PRECISION = 4;
+        private const int SPIKE_FACTOR_PRECISION = 1;
+        private const int PRICE_CHANGE_PRECISION = 2;
 
         public YahooFinanceStockService(HttpClient httpClient, ILogger<YahooFinanceStockService> logger)
         {
@@ -192,6 +196,124 @@ namespace StockApp.Services
             var results = await Task.WhenAll(tasks);
             
             return results.SelectMany(r => r);
+        }
+
+        public async Task<VolatilitySpikeResponse> GetVolatilitySpikesAsync(VolatilitySpikeRequest request)
+        {
+            _logger.LogInformation($"Calculating volatility spikes for {request.Symbols.Count} symbols");
+
+            var asOfUtc = DateTimeOffset.UtcNow;
+            var results = new List<VolatilitySpikeResult>();
+
+            // Fetch data for each symbol
+            foreach (var symbol in request.Symbols)
+            {
+                // Get all data for the baseline period
+                var baselineDuration = TimeSpan.FromMinutes(request.BaselineMinutes);
+                var prices = await GetRecentStockPricesAsync(symbol, baselineDuration);
+                var orderedPrices = prices.OrderBy(p => p.Date).ToList();
+
+                // Need at least 2 prices in each window to calculate volatility
+                if (orderedPrices.Count < 2)
+                {
+                    _logger.LogWarning($"Insufficient data for {symbol}");
+                    continue;
+                }
+
+                // Split data into baseline and short-term windows
+                var now = DateTimeOffset.UtcNow;
+                var shortTermStart = now.AddMinutes(-request.WindowMinutes);
+                var baselineStart = now.AddMinutes(-request.BaselineMinutes);
+
+                var shortTermPrices = orderedPrices.Where(p => p.Date >= shortTermStart).ToList();
+                var baselinePrices = orderedPrices.Where(p => p.Date >= baselineStart && p.Date < shortTermStart).ToList();
+
+                // Need at least 2 prices in each window
+                if (shortTermPrices.Count < 2 || baselinePrices.Count < 2)
+                {
+                    _logger.LogWarning($"Insufficient data in windows for {symbol}");
+                    continue;
+                }
+
+                // Calculate log returns and volatility for short-term window
+                var shortTermReturns = CalculateLogReturns(shortTermPrices);
+                var shortTermVolatility = CalculateStandardDeviation(shortTermReturns);
+
+                // Calculate log returns and volatility for baseline window
+                var baselineReturns = CalculateLogReturns(baselinePrices);
+                var baselineVolatility = CalculateStandardDeviation(baselineReturns);
+
+                // Skip if baseline volatility is too close to zero (avoid division by zero)
+                if (baselineVolatility < DENOMINATOR_THRESHOLD)
+                {
+                    _logger.LogWarning($"Baseline volatility is too low for {symbol}");
+                    continue;
+                }
+
+                // Calculate spike factor
+                var spikeFactor = shortTermVolatility / baselineVolatility;
+
+                // Only include if spike factor meets threshold
+                if (spikeFactor >= request.SpikeThreshold)
+                {
+                    // Calculate price change percent (using decimal for financial precision)
+                    var startPrice = shortTermPrices.First().Price;
+                    var endPrice = shortTermPrices.Last().Price;
+                    var priceChangePercent = startPrice != 0
+                        ? (decimal)Math.Round(((endPrice - startPrice) / startPrice) * 100, PRICE_CHANGE_PRECISION)
+                        : 0;
+
+                    results.Add(new VolatilitySpikeResult
+                    {
+                        Symbol = symbol,
+                        ShortTermVolatility = Math.Round(shortTermVolatility, VOLATILITY_PRECISION),
+                        BaselineVolatility = Math.Round(baselineVolatility, VOLATILITY_PRECISION),
+                        SpikeFactor = Math.Round(spikeFactor, SPIKE_FACTOR_PRECISION),
+                        PriceChangePercent = priceChangePercent
+                    });
+                }
+            }
+
+            // Sort by highest spike factor first
+            results = results.OrderByDescending(r => r.SpikeFactor).ToList();
+
+            return new VolatilitySpikeResponse
+            {
+                WindowMinutes = request.WindowMinutes,
+                BaselineMinutes = request.BaselineMinutes,
+                AsOfUtc = asOfUtc,
+                Results = results
+            };
+        }
+
+        private List<double> CalculateLogReturns(List<StockPrice> prices)
+        {
+            var returns = new List<double>();
+            for (int i = 1; i < prices.Count; i++)
+            {
+                var prevPrice = (double)prices[i - 1].Price;
+                var currPrice = (double)prices[i].Price;
+
+                if (prevPrice > 0 && currPrice > 0)
+                {
+                    var logReturn = Math.Log(currPrice / prevPrice);
+                    returns.Add(logReturn);
+                }
+            }
+            return returns;
+        }
+
+        private double CalculateStandardDeviation(List<double> values)
+        {
+            if (values.Count < 2)
+            {
+                return 0;
+            }
+
+            var mean = values.Average();
+            var sumOfSquares = values.Sum(v => Math.Pow(v - mean, 2));
+            var variance = sumOfSquares / (values.Count - 1);
+            return Math.Sqrt(variance);
         }
     }
 }
