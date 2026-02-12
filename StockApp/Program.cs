@@ -37,8 +37,15 @@ builder.Services.AddRateLimiter(options =>
     // IP-based Policy
     options.AddPolicy("PerIpPolicy", httpContext =>
     {
+        var remoteIp = httpContext.Connection.RemoteIpAddress?.ToString();
+        // For requests without a remote IP (e.g., localhost in development),
+        // use a combination of forwarded headers if available
+        var partitionKey = remoteIp ?? 
+                          httpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? 
+                          "localhost-fallback";
+        
         return RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            partitionKey: partitionKey,
             factory: _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 20,
