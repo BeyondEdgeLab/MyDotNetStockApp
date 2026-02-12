@@ -27,3 +27,16 @@ Content-Type: application/json
 }
 
 ###
+
+# Test volatility spikes endpoint
+POST {{StockApp_HostAddress}}/stocks/volatility/spikes
+Content-Type: application/json
+
+{
+  "symbols": ["AAPL", "TSLA", "MSFT"],
+  "windowMinutes": 5,
+  "baselineMinutes": 60,
+  "spikeThreshold": 2.0
+}
+
+###
