@@ -243,10 +243,10 @@ namespace StockApp.Services
                 var baselineReturns = CalculateLogReturns(baselinePrices);
                 var baselineVolatility = CalculateStandardDeviation(baselineReturns);
 
-                // Skip if baseline volatility is zero (avoid division by zero)
-                if (baselineVolatility == 0)
+                // Skip if baseline volatility is too close to zero (avoid division by zero)
+                if (baselineVolatility < DENOMINATOR_THRESHOLD)
                 {
-                    _logger.LogWarning($"Baseline volatility is zero for {symbol}");
+                    _logger.LogWarning($"Baseline volatility is too low for {symbol}");
                     continue;
                 }
 
