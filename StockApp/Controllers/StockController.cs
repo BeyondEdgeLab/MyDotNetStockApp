@@ -353,7 +353,7 @@ namespace StockApp.Controllers
 
             var mean = values.Average();
             var sumOfSquares = values.Sum(v => Math.Pow(v - mean, 2));
-            var variance = sumOfSquares / values.Count;
+            var variance = sumOfSquares / (values.Count - 1);
             return Math.Sqrt(variance);
         }
     }
