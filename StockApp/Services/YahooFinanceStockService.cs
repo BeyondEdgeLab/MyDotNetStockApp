@@ -9,6 +9,9 @@ namespace StockApp.Services
         private readonly HttpClient _httpClient;
         private readonly ILogger<YahooFinanceStockService> _logger;
         private const double DENOMINATOR_THRESHOLD = 0.0001;
+        private const int VOLATILITY_PRECISION = 4;
+        private const int SPIKE_FACTOR_PRECISION = 1;
+        private const int PRICE_CHANGE_PRECISION = 2;
 
         public YahooFinanceStockService(HttpClient httpClient, ILogger<YahooFinanceStockService> logger)
         {
@@ -253,19 +256,19 @@ namespace StockApp.Services
                 // Only include if spike factor meets threshold
                 if (spikeFactor >= request.SpikeThreshold)
                 {
-                    // Calculate price change percent
+                    // Calculate price change percent (using decimal for financial precision)
                     var startPrice = shortTermPrices.First().Price;
                     var endPrice = shortTermPrices.Last().Price;
                     var priceChangePercent = startPrice != 0
-                        ? (decimal)Math.Round(((endPrice - startPrice) / startPrice) * 100, 2)
+                        ? (decimal)Math.Round(((endPrice - startPrice) / startPrice) * 100, PRICE_CHANGE_PRECISION)
                         : 0;
 
                     results.Add(new VolatilitySpikeResult
                     {
                         Symbol = symbol,
-                        ShortTermVolatility = Math.Round(shortTermVolatility, 4),
-                        BaselineVolatility = Math.Round(baselineVolatility, 4),
-                        SpikeFactor = Math.Round(spikeFactor, 1),
+                        ShortTermVolatility = Math.Round(shortTermVolatility, VOLATILITY_PRECISION),
+                        BaselineVolatility = Math.Round(baselineVolatility, VOLATILITY_PRECISION),
+                        SpikeFactor = Math.Round(spikeFactor, SPIKE_FACTOR_PRECISION),
                         PriceChangePercent = priceChangePercent
                     });
                 }
