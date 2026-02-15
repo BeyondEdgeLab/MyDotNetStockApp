@@ -58,7 +58,7 @@ namespace StockApp.Controllers
             return Ok(response);
         }
 
-        [HttpPost("/stocks/momentum")]
+        [HttpPost("momentum")]
         public async Task<IActionResult> GetStockMomentum([FromBody] StockMomentumRequest request)
         {
             if (request.Symbols == null || !request.Symbols.Any())
@@ -80,7 +80,7 @@ namespace StockApp.Controllers
             return Ok(response);
         }
 
-        [HttpPost("/stocks/volatility/spikes")]
+        [HttpPost("volatility/spikes")]
         public async Task<IActionResult> GetVolatilitySpikes([FromBody] VolatilitySpikeRequest request)
         {
             if (request.Symbols == null || !request.Symbols.Any())
